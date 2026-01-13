@@ -27,7 +27,41 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirement.txt
 
-      # Step 4: Run Robot tests
+      # Step 4: Run Robot tests (Excel DDT)
       - name: Run Robot Tests
         run: |
-          robot test/query_excel.robot
+          robot -d output test/query_excel.robot
+
+      # Step 5: Upload Robot Framework results
+      - name: Upload Robot Framework results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-test-results
+          path: output/
+
+      # Step 6: Send test report email
+      - name: Send test report email
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: false
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Robot Tests - ${{ job.status }}"
+          from: "Robot CI <${{ secrets.EMAIL_USERNAME }}>"
+          to: aarushisubedi68@gmail.com
+          body: |
+            Robot Framework test execution completed.
+
+            Status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+
+            Download reports:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          attachments: |
+            output/report.html
+            output/log.html
