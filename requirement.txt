@@ -1,0 +1,5 @@
+robotframework
+robotframework-SeleniumLibrary
+robotframework-datadriver
+robotframework-JSONLibrary
+robotframework-datadriver[XLS]
