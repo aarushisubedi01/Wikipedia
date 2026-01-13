@@ -1,6 +1,7 @@
 *** Settings ***
 Library    SeleniumLibrary
 Resource    ../data/data.robot
+Resource    ../data/data.json
 Resource    ../pages/wikipage.robot
 *** Test Cases ***
 search
