@@ -1,76 +1,87 @@
-name: Robot Tests
+# Name of the workflow (shown in GitHub Actions UI)
+name: Wikipedia Tests
 
+# Events that trigger this workflow
 on:
+  # Trigger on push to master branch
   push:
     branches: [ master ]
+
+  # Trigger on pull request to master branch
   pull_request:
     branches: [ master ]
 
+  # Scheduled run (05:15 UTC, Monday–Friday)
+  schedule:
+    - cron: '15 5 * * 1-5'
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+# Jobs section
 jobs:
   robot-tests:
-    runs-on: ubuntu-latest
+    # OS where the job will run
+    runs-on: macos-latest
 
+    # Steps executed in order
     steps:
-      # Step 1: Checkout code
+      # Step 1: Checkout repository code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Install system dependencies
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-pip \
-            xvfb \
-            unzip \
-            fonts-liberation \
-            libnss3 \
-            libxss1 \
-            libatk1.0-0 \
-            libatk-bridge2.0-0 \
-            libx11-xcb1 \
-            libasound2t64 \
-            wget \
-            apt-transport-https \
-            ca-certificates \
-            gnupg
+      # Step 2: Install Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      # Step 3: Install Google Chrome
-      - name: Install Google Chrome
+      # Step 3: Install required Python libraries
+      - name: Install dependencies
         run: |
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-linux-signing-key.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          python -m pip install --upgrade pip
+          pip install -r requirement.txt
 
-      # Step 4: Install Python dependencies
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install \
-            robotframework \
-            selenium \
-            robotframework-seleniumlibrary \
-            webdriver-manager
-
-      # Step 5: Verify Chrome & ChromeDriver
-      - name: Check Chrome and ChromeDriver versions
-        run: |
-          echo "Google Chrome version:"
-          google-chrome --version
-          echo "ChromeDriver version:"
-          python3 -c "from webdriver_manager.chrome import ChromeDriverManager; print(ChromeDriverManager().install())"
-
-      # Step 6: Run Robot Framework tests (Headless using Xvfb)
+      # Step 4: Run Robot Framework tests
       - name: Run Robot Tests
         run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-          robot -d output test/query_excel.robot
+          robot --outputdir output test/query_excel.robot
 
-      # Step 7: Upload test reports
+      # Step 5: Upload Robot Framework results (runs even if tests fail)
       - name: Upload Robot Framework results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: robot-test-results
           path: output/
+
+      # Step 6: Send test report email (runs even if tests fail)
+      - name: Send test report email
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+
+          subject: "Robot Tests - ${{ job.status }}"
+          from: "Robot CI <${{ secrets.EMAIL_USERNAME }}>"
+
+          # Multiple recipients must be comma-separated
+          to: aarushisubedi68@gmail.com, aarushidicious@gmail.com
+
+          body: |
+            Robot Framework test execution completed.
+
+            Status: ${{ job.status }}
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+
+            Download reports:
+            Download reports:
+                ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          attachments: |
+            output/report.html
+            output/log.html
