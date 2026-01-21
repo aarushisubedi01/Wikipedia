@@ -65,7 +65,7 @@ jobs:
       - name: Run Robot Tests
         run: |
           xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-          robot -d output test/query_excel.robot
+          robot -d output test/pizza_search.robot
 
       # Step 7: Upload test reports
       - name: Upload Robot Framework results
